@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from GBN import GBN_transmisser
 
@@ -44,6 +45,7 @@ def count_props():
                 times[sim['NAME']][i].append(elapsed_time)
 
     fig, axes = plt.subplots(1, 2, figsize=(22,8))
+    data = {}
     for sim in simulations:
         k_arr, times_arr = [], []
         for i, p in enumerate(probabilities):
@@ -52,6 +54,9 @@ def count_props():
             k_arr.append(ks[sim["NAME"]][i])
             times_arr.append(times[sim["NAME"]][i])
         
+        data[sim["NAME"] + "_k"] = k_arr
+        data[sim["NAME"] + "_times"] = times_arr
+
         axes[0].plot(probabilities, k_arr, label=sim["NAME"])
         axes[1].plot(probabilities, times_arr, label=sim["NAME"])
         
@@ -64,6 +69,7 @@ def count_props():
     axes[1].legend()
     
     fig.savefig("./../res/prob_test.png")
+    pd.DataFrame.from_dict(data).to_csv("./../res/probs_values.csv")
 
 if __name__ == "__main__":
     count_props()

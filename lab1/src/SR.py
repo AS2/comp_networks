@@ -1,12 +1,25 @@
 import time
 import typing as tp
 from threading import Thread
+import enum
 
 from message_queue import Message, MessageCode, LossyMessageQueue
 
-class GBN_transmisser():
+class SR_transmisser():
     def __init__(self):
         pass
+
+    class WndMsgStatus(enum.Enum):
+        BUSY = enum.auto()
+        NEED_REPEAT = enum.auto()
+        CAN_BE_USED = enum.auto()
+
+    class WndNode:
+        def __init__(self, number):
+            self.status = WndMsgStatus.NEED_REPEAT
+            self.time = 0
+            self.number = number
+            pass
 
     @staticmethod
     def GBN_sender_process(messages_count : int,
