@@ -105,27 +105,6 @@ class GBN_transmisser():
         
         return 
 
-    # @staticmethod
-    # def __create_GBN_sending(sending_queue : LossyMessageQueue, 
-    #                         ACK_reciving_queue : LossyMessageQueue,
-    #                         posted_msgs:tp.List[int]):
-
-    #     def sim_GBN_sender(messages_count : int,
-    #                         window_size : int,
-    #                         lost_timeout_sec : float):
-    #         return GBN_transmisser.GBN_sender_process(messages_count, window_size, lost_timeout_sec, sending_queue, ACK_reciving_queue, posted_msgs)
-    #     return sim_GBN_sender
-
-    # @staticmethod
-    # def __create_GBN_receiving(sending_queue : LossyMessageQueue, 
-    #                         ACK_reciving_queue : LossyMessageQueue,
-    #                         received_msgs:tp.List[int]):
-
-    #     def sim_GBN_reciever(window_size:int):
-    #         return GBN_transmisser.GBN_receiver_process(window_size, sending_queue, ACK_reciving_queue, received_msgs)
-    #     return sim_GBN_reciever
-
-
     @staticmethod
     def make_simulation(messages_count : int,
                         window_size : int,
@@ -137,16 +116,6 @@ class GBN_transmisser():
         ACK_queue = LossyMessageQueue(lost_propability=lost_propability)
         posted_msgs, received_msgs = [], []
 
-        # ACK_queue.push_message(Message(0, 0))
-        # ACK_queue.push_message(Message(1, 1))
-        # ACK_queue.push_message(Message(2, 2))
-        # ACK_queue.push_message(Message(3, 0))
-        # ACK_queue.push_message(Message(4, 1))
-
-        #sending_queue.push_message(Message(1, 0))
-        #sending_queue.push_message(Message(1, 1))
-        #sending_queue.push_message(Message(1, 2))
-
         # init multithread works
         sender_th = Thread(target=GBN_transmisser.GBN_sender_process, args=(messages_count, window_size, lost_timeout_sec, sending_queue, ACK_queue, posted_msgs))
         receiver_th = Thread(target=GBN_transmisser.GBN_receiver_process, args=(window_size, sending_queue, ACK_queue, received_msgs))
@@ -155,8 +124,6 @@ class GBN_transmisser():
         timer_start = time.time()
         receiver_th.start()
         sender_th.start()
-        #GBN_transmisser.GBN_sender_process(messages_count, window_size, lost_timeout_sec, sending_queue, ACK_queue, posted_msgs)
-        #GBN_transmisser.GBN_receiver_process(window_size, sending_queue, ACK_queue, received_msgs)
         
         sender_th.join()
         receiver_th.join()
