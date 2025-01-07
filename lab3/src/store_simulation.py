@@ -20,6 +20,7 @@ class StoreSimulation():
 
     def __router_run(self, neighbors, router_file_parts, orig_idx):
         fDR2R, fR2DR, new_index = self.designed_router.add_connection(f'Router "{orig_idx}"')
+        print(fDR2R, fR2DR, new_index, 'is starting...')
         router = Router(fDR2R, fR2DR, new_index, router_file_parts)
         router.neighbors = neighbors.copy()
         router.router_start()
@@ -33,6 +34,7 @@ class StoreSimulation():
                 self.building_flag = False
             
             if self.stop_flag:
+                print(f'R({orig_idx}) is stopping with next files: {router.file_parts}')
                 break
 
 
@@ -50,46 +52,106 @@ class StoreSimulation():
                 break
 
 
-    def __printer(self):
-        while True:
+    def __printer(self, max_calls : int = 5):
+        calls_count = 0
+        while calls_count < max_calls:
             time.sleep(1)
+            calls_count += 1
             self.printer_flag = True
-            if self.stop_flag:
-                break
+            
             
     
     def simulate_short_parts_building(self, nodes : tp.List, neighbors : tp.List):
+        print(len(nodes), nodes, neighbors)
+        
         dr_thread = Thread(target=self.__designed_router_run, args=())
 
         node_threads = [Thread(target=self.__router_run, args=(neighbors[i], [], i)) for i in range(len(nodes))]
-        self.blink_conn_arr = [False for i in range(len(nodes))]
 
         dr_thread.start()
         for i in range(len(nodes)):
             node_threads[i].start()
 
-        printer_thread = Thread(target=self.__printer, args=())
-        printer_thread.start()
-
-        time.sleep(10.0)
+        time.sleep(1.0)
+        self.__printer(5)
+        
         self.stop_flag = True
         for i in range(len(nodes)):
             node_threads[i].join()
 
         dr_thread.join()
         
+        print(self.designed_router.topology.topology)
         
-    def simulate_storing(self, nodes : tp.List, neighbors : tp.List, data : tp.Any, splits : int, logging : bool):
+        
+    def simulate_storing(self, nodes : tp.List, neighbors : tp.List, data : tp.Any, splits : int):
         # init basic storing variables
-        parts = [FilePart(data[i:i+splits], i) for i in range(0, len(data), splits)]
+        print(splits)
+        k, m = divmod(len(data), splits)
+        parts = [FilePart(data[i*k+min(i, m):(i+1)*k+min(i+1, m)], i) for i in range(splits)]
         parts_for_each_node = [[] for i in range(len(nodes))]
         for i, part in enumerate(parts):
             parts_for_each_node[i % len(nodes)].append(part)
-            
+        
+        # start building
+        print(len(nodes), nodes, neighbors)
+        
+        dr_thread = Thread(target=self.__designed_router_run, args=())
+
+        node_threads = [Thread(target=self.__router_run, args=(neighbors[i], parts_for_each_node[i], i)) for i in range(len(nodes))]
+
+        dr_thread.start()
+        for i in range(len(nodes)):
+            node_threads[i].start()
+
+        time.sleep(1.0)
+        self.__printer(5)
+
+        self.stop_flag = True
+        for i in range(len(nodes)):
+            node_threads[i].join()
+
+        dr_thread.join()
+        print(self.designed_router.topology.topology)
         return
     
     
-    def simulate_build(self, nodes : tp.List, neighbors : tp.List, data : tp.Any, splits : int, protocol : ResendProtocol, logging : bool):
-        parts = [data[i:i+splits] for i in range(0, len(data), splits)]
-        node_threads = [Thread(target=self.__router_run, args=(neighbors[i],)) for i in range(len(nodes))]
+    def simulate_build(self, nodes : tp.List, neighbors : tp.List, data : tp.Any, splits : int, idx_to_build_file : int):
+        # init basic storing variables
+        print(splits)
+        k, m = divmod(len(data), splits)
+        parts = [FilePart(data[i*k+min(i, m):(i+1)*k+min(i+1, m)], i) for i in range(splits)]
+        parts_for_each_node = [[] for i in range(len(nodes))]
+        for i, part in enumerate(parts):
+            parts_for_each_node[i % len(nodes)].append(part)
+        
+        # start building
+        print(len(nodes), nodes, neighbors)
+        
+        dr_thread = Thread(target=self.__designed_router_run, args=())
+
+        node_threads = [Thread(target=self.__router_run, args=(neighbors[i], parts_for_each_node[i], i)) for i in range(len(nodes))]
+
+        dr_thread.start()
+        for i in range(len(nodes)):
+            node_threads[i].start()
+
+        # build parts and print paths from each 
+        time.sleep(1.0)
+        self.__printer(3)
+        print('\n Stop printing calls...\n')
+        time.sleep(5.0)
+        
+        # build file for index
+        print('\n Start building call ...\n')
+        self.building_flag = True
+        self.build_router = idx_to_build_file
+        time.sleep(15) # wait for file transporting
+
+        self.stop_flag = True
+        for i in range(len(nodes)):
+            node_threads[i].join()
+
+        dr_thread.join()
+        print(self.designed_router.topology.topology)
         return

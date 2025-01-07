@@ -33,7 +33,7 @@ class SRPolicy(IResendBehaviour):
 
         while approved < data_len:
             if fr2s:
-                msg = self.logger.channel_pop(fr2s, logging)
+                msg = self.logger.channel_pop(fr2s, False)
                 approved += 1
                 nodes[msg.message_idx].status = Status.DERIVED
 
@@ -69,7 +69,7 @@ class SRPolicy(IResendBehaviour):
                     term_flag = True
                 data[msg.message_idx] = msg.message_data
                 package = Message(msg_idx=msg.message_idx, msg_type=MsgType.ACK, msg_data=None)
-                self.logger.channel_append(fr2s, package, logging)
+                self.logger.channel_append(fr2s, package, False)
                 
                 if term_flag and sorted(list(data.keys())) == list(range(len(data))):
                     break

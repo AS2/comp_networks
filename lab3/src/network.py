@@ -27,6 +27,9 @@ class NetworkMsg:
     def __init__(self):
         self.data = None
         self.type = None
+        
+    def __repr__(self):
+        return f"({self.type}: {self.data})"
 
     def __str__(self):
         return f"({self.type}: {self.data})"
@@ -86,7 +89,76 @@ class DesignatedRouter:
         msg = NetworkMsg()
         msg.type = NetworkCode.PRINT_WAYS
         for conn in self.connections:
-            conn[self.__FROM_DR].push([msg], True)
+            conn[self.__FROM_DR].push([msg], False)
+            
+    def proc_one_msg(self, conn, conn_ind, msg):
+        input_msg = msg
+        print(f"dr({conn_ind}): {input_msg}\n", end="")
+
+        if input_msg.type == NetworkCode.NEIGHBORS:
+            self.proc_msg_neighbors(conn_ind, input_msg)
+
+        elif input_msg.type == NetworkCode.GET_TOPOLOGY:
+            msg = NetworkMsg()
+            msg.type = NetworkCode.SET_TOPOLOGY
+            msg.data = self.topology.copy()
+            conn[self.__FROM_DR].push([msg], False)
+            
+        elif input_msg.type == NetworkCode.BUILD_CONNS:
+            input_cons = [{} for _ in range(len(self.topology.topology))]
+            output_cons = [{} for _ in range(len(self.topology.topology))]
+                
+            for i, nodes_neighbors in enumerate(self.topology.topology):
+                for neighbor in nodes_neighbors:
+                    if neighbor <= i:
+                        continue
+                        
+                    conn_1 = Connection(f"{i}->{neighbor}", ResendProtocol.SRP, 5, 0.1, 0.2)
+                    conn_2 = Connection(f"{neighbor}->{i}", ResendProtocol.SRP, 5, 0.1, 0.2)
+                        
+                    input_cons[i][neighbor] = conn_2
+                    input_cons[neighbor][i] = conn_1
+                    output_cons[i][neighbor] = conn_1
+                    output_cons[neighbor][i] = conn_2
+                        
+            for i in range(len(self.topology.topology)):
+                msg = NetworkMsg()
+                msg.type = NetworkCode.BUILD_CONNS
+                msg.data = (input_cons[i], output_cons[i])
+                self.connections[i][self.__FROM_DR].push([msg], False)
+                    
+        elif input_msg.type == NetworkCode.BUILD_FILE_START:
+            self.is_yet_building = True
+            new_msg = NetworkMsg()
+            new_msg.type = NetworkCode.BUILD_FILE_START
+            new_msg.data = input_msg.data
+                
+            for i in range(len(self.connections)):
+                some_conn = self.connections[conn_ind][self.__FROM_DR]
+                    
+                if some_conn is None:
+                    continue
+                    
+                some_conn.push([new_msg], False)
+                    
+        elif input_msg.type == NetworkCode.BUILD_FILE_END:
+            self.is_yet_building = False
+            new_msg = NetworkMsg()
+            new_msg.type = NetworkCode.BUILD_FILE_END
+            new_msg.data = input_msg.data
+                
+            for i in range(len(self.connections)):
+                some_conn = self.connections[conn_ind][self.__FROM_DR]
+                    
+                if some_conn is None:
+                    continue
+                    
+                some_conn[self.__FROM_DR].push([new_msg], False)
+                    
+        else:
+            print("DR: unexpected msf type:", input_msg.type)
+        
+        return
 
     def proc_message(self):
         for conn_ind in range(len(self.connections)):
@@ -99,72 +171,10 @@ class DesignatedRouter:
             if input_msg is None:
                 continue
             else:
-                input_msg = input_msg[0]
-
-            # print(f"dr({conn_ind}): {input_msg}\n", end="")
-
-            if input_msg.type == NetworkCode.NEIGHBORS:
-                self.proc_msg_neighbors(conn_ind, input_msg)
-
-            elif input_msg.type == NetworkCode.GET_TOPOLOGY:
-                msg = NetworkMsg()
-                msg.type = NetworkCode.SET_TOPOLOGY
-                msg.data = self.topology.copy()
-                conn[self.__FROM_DR].push([msg], False)
+                print(input_msg)
+                for msg in input_msg:
+                    self.proc_one_msg(conn, conn_ind, msg[0])
             
-            elif input_msg.type == NetworkCode.BUILD_CONNS:
-                input_cons = [{} for _ in range(len(self.topology.topology))]
-                output_cons = [{} for _ in range(len(self.topology.topology))]
-                
-                for i, nodes_neighbors in enumerate(self.topology.topology):
-                    for neighbor in nodes_neighbors:
-                        if neighbor <= i:
-                            continue
-                        
-                        conn_1 = Connection(f"{i}->{neighbor}", ResendProtocol.SRP, 5, 0.1, 0.2)
-                        conn_2 = Connection(f"{neighbor}->{i}", ResendProtocol.SRP, 5, 0.1, 0.2)
-                        
-                        input_cons[i][neighbor] = conn_2
-                        input_cons[neighbor][i] = conn_1
-                        output_cons[i][neighbor] = conn_1
-                        output_cons[neighbor][i] = conn_2
-                        
-                for i in range(len(self.topology.topology)):
-                    msg = NetworkMsg()
-                    msg.type = NetworkCode.BUILD_CONNS
-                    msg.data = (input_cons[i], output_cons[i])
-                    self.connections[i].push(msg, False)
-                    
-            elif input_msg.type == NetworkCode.BUILD_FILE_START:
-                self.is_yet_building = True
-                new_msg = NetworkMsg()
-                new_msg.type = NetworkCode.BUILD_FILE_START
-                new_msg.data = input_msg.data
-                
-                for i in range(len(self.connections)):
-                    some_conn = self.connections[conn_ind][self.__FROM_DR]
-                    
-                    if some_conn is None:
-                        continue
-                    
-                    some_conn[self.__FROM_DR].push([new_msg], False)
-                    
-            elif input_msg.type == NetworkCode.BUILD_FILE_END:
-                self.is_yet_building = False
-                new_msg = NetworkMsg()
-                new_msg.type = NetworkCode.BUILD_FILE_END
-                new_msg.data = input_msg.data
-                
-                for i in range(len(self.connections)):
-                    some_conn = self.connections[conn_ind][self.__FROM_DR]
-                    
-                    if some_conn is None:
-                        continue
-                    
-                    some_conn[self.__FROM_DR].push([new_msg], False)
-                    
-            else:
-                print("DR: unexpected msf type:", input_msg.type)
 
 class Router:
     def __init__(self, conn_from_DR : Connection, conn_2_DR : Connection, index : int, router_file_parts : tp.List[FilePart]):
@@ -331,15 +341,9 @@ class Router:
             new_package.filepart = file_part
             self.transmited_parts.append(new_package)
         return
-
-    def proc_message(self):
-        input_msg = self.conn_from_DR.get()
-        print(input_msg, input_msg[0])
-
-        if input_msg is None:
-            return
-        else:
-            input_msg = input_msg[0]
+    
+    def proc_one_message(self, input_msg):
+        print(f"r({self.index}): {input_msg}")
 
         text = 'router' + str(self.index) + ' got: "{}"'
         if input_msg.type == NetworkCode.NEIGHBORS:
@@ -377,6 +381,16 @@ class Router:
         else:
             print("DR: unexpected msf type:", input_msg.type)
             
+        return
+
+    def proc_message(self):
+        input_msg = self.conn_from_DR.get()
+        
+        if input_msg is not None:
+            print(input_msg)
+            for msg in input_msg:
+                self.proc_one_message(msg[0])
+
         self.proc_transfering()
 
     pass

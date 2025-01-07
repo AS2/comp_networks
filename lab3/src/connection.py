@@ -1,4 +1,5 @@
 from threading import Thread, Lock, Barrier
+from copy import copy
 
 from resend_protocol_base import *
 from SR import *
@@ -16,6 +17,7 @@ class Connection:
     def __init__(self, name:str, resend_protocol: ResendProtocol, window_size:int, timeout:float, loss_chance:float):
         self._channel_main = LossyQueue(loss_chance=loss_chance)
         self._channel_back = LossyQueue()
+        self._name = name
         
         self.protocol_stratagy(resend_protocol, window_size, timeout, name)
         
@@ -23,7 +25,7 @@ class Connection:
         self._sender_thread = None
         self._receiver_thread = None
         self._msg_flag = False
-        self._result = []
+        self._result_list = []
         self.mutex = Lock()
 
     def push(self, data=None, logging:bool=False):
@@ -34,7 +36,7 @@ class Connection:
         self._sender_thread = Thread(target=self._protocol.send_procedure,
                                      args=(self._channel_main, self._channel_back, data, logging))
         self._receiver_thread = Thread(target=self._protocol.recieve_procedure,
-                                       args=(self._channel_main, self._channel_back, self._result, logging))
+                                       args=(self._channel_main, self._channel_back, self._result_list, logging))
         self._sender_thread.start()
         self._receiver_thread.start()
         self._sender_thread.join()
@@ -45,16 +47,19 @@ class Connection:
 
     def get(self):
         start = time.time()
+        result = None
         while True:
             self.mutex.acquire()
             if self._msg_flag:
                 self._msg_flag = False
+                result = copy(self._result_list)
+                self._result_list.clear()
                 self.mutex.release()
                 break
             if time.time() - start >= self._get_timeout:
                 self.mutex.release()
-                return None
+                return result
             self.mutex.release()
             time.sleep(0.1)
-        #print(self._result[0])
-        return self._result[0]
+        #print(f'{self._name}: popped {self._result[0]}')
+        return result

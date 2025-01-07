@@ -27,6 +27,12 @@ class FilePart():
     def __init__(self, data, idx):
         self.data = data
         self.part_idx = idx
+    
+    def __repr__(self):
+        return f'({self.part_idx})-"{self.data}"'
+    
+    def __str__(self):
+        return f'({self.part_idx})-"{self.data}"'
 
 class FileMetadata():
     data = None
