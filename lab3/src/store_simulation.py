@@ -92,6 +92,10 @@ class StoreSimulation():
         parts_for_each_node = [[] for i in range(len(nodes))]
         for i, part in enumerate(parts):
             parts_for_each_node[i % len(nodes)].append(part)
+        self.metadata = FileMetadata()
+        self.metadata.data = data
+        self.metadata.parts_cnt = splits
+        self.metadata.size = len(data)
         
         # start building
         print(len(nodes), nodes, neighbors)
@@ -124,6 +128,10 @@ class StoreSimulation():
         parts_for_each_node = [[] for i in range(len(nodes))]
         for i, part in enumerate(parts):
             parts_for_each_node[i % len(nodes)].append(part)
+        self.metadata = FileMetadata(data, splits)
+        self.metadata.data = data
+        self.metadata.parts_cnt = splits
+        self.metadata.size = len(data)
         
         # start building
         print(len(nodes), nodes, neighbors)
@@ -146,7 +154,7 @@ class StoreSimulation():
         print('\n Start building call ...\n')
         self.building_flag = True
         self.build_router = idx_to_build_file
-        time.sleep(15) # wait for file transporting
+        time.sleep(25) # wait for file transporting
 
         self.stop_flag = True
         for i in range(len(nodes)):

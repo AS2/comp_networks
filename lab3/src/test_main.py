@@ -102,7 +102,7 @@ def dif_network_testing():
         "idxs_to_build": [0, 3]
     }
     
-    topologies = [testing_comm, linear, star, circle]
+    topologies = [linear, star, circle, testing_comm]
     splits = [63]#list(range(8, 17, 1))
     data = load_text("./lab3/src/data/input.txt")
     

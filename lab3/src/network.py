@@ -39,6 +39,12 @@ class FilePartPackage():
         self.filepart = None
         self.destination = -1
         
+    def __repr__(self):
+        return f'package {self.filepart} to {self.destination}'
+    
+    def __str__(self):
+        return f'package {self.filepart} to {self.destination}'
+        
 
 class DesignatedRouter:
     def __init__(self):
@@ -113,8 +119,8 @@ class DesignatedRouter:
                     if neighbor <= i:
                         continue
                         
-                    conn_1 = Connection(f"{i}->{neighbor}", ResendProtocol.SRP, 5, 0.1, 0.2)
-                    conn_2 = Connection(f"{neighbor}->{i}", ResendProtocol.SRP, 5, 0.1, 0.2)
+                    conn_1 = Connection(f"{i}->{neighbor}", ResendProtocol.GBN, 5, 0.1, 0.2)
+                    conn_2 = Connection(f"{neighbor}->{i}", ResendProtocol.GBN, 5, 0.1, 0.2)
                         
                     input_cons[i][neighbor] = conn_2
                     input_cons[neighbor][i] = conn_1
@@ -134,7 +140,7 @@ class DesignatedRouter:
             new_msg.data = input_msg.data
                 
             for i in range(len(self.connections)):
-                some_conn = self.connections[conn_ind][self.__FROM_DR]
+                some_conn = self.connections[i][self.__FROM_DR]
                     
                 if some_conn is None:
                     continue
@@ -148,12 +154,12 @@ class DesignatedRouter:
             new_msg.data = input_msg.data
                 
             for i in range(len(self.connections)):
-                some_conn = self.connections[conn_ind][self.__FROM_DR]
+                some_conn = self.connections[i][self.__FROM_DR]
                     
                 if some_conn is None:
                     continue
                     
-                some_conn[self.__FROM_DR].push([new_msg], False)
+                some_conn.push([new_msg], False)
                     
         else:
             print("DR: unexpected msf type:", input_msg.type)
@@ -196,15 +202,16 @@ class Router:
         
         # stored data
         self.file_parts = router_file_parts
+        self.filemetadata = None
         
         # variables to manage file building
         self.is_yet_building = False
         self.transmited_parts = []
 
     def print_shortest_ways(self):
-        shortest_ways = self.topology.get_shortest_ways(self.index)
+        self.shortest_roads = self.topology.get_shortest_ways(self.index)
         result = 'shortest ways from {}:\n'.format(self.index)
-        for i, way in enumerate(shortest_ways):
+        for i, way in enumerate(self.shortest_roads):
             if way:
                 way_str = ' -> '.join(map(str, way))
             else:
@@ -228,16 +235,18 @@ class Router:
     
     def build_file(self, file_metadata : FileMetadata):
         print(f"Building for {self.index} asked...")
-        # ask for build connections to transfer files
-        self.ask_build_conns()
-        time.sleep(0.2)
-        
-        # ask for share parts from another routers to 
-        self.ask_build_file()
-        time.sleep(0.2)
         
         # save file metadata for future building
         self.filemetadata = file_metadata
+        
+        # ask for build connections to transfer files
+        self.ask_build_conns()
+        time.sleep(1.5)
+        
+        # ask for share parts from another routers to 
+        self.ask_build_file()
+        time.sleep(1.5)
+        
         return
 
     def send_neighbors(self):
@@ -276,16 +285,19 @@ class Router:
     
     def validate_packages(self):
         # Check if all packages are in the correct place
+        print('check 0')
         for package in self.transmited_parts:
             if package.destination != self.index:
                 return
         
         # Check that all parts are collected
+        print('check 1')
         if self.filemetadata.parts_cnt != len(self.transmited_parts):
             return
         
         # Sort parts and check id they are correct
-        sorted(self.transmited_parts, key=lambda x: x.filepart.part_idx)
+        print('check 2')
+        self.transmited_parts = sorted(self.transmited_parts, key=lambda x: x.filepart.part_idx)
         expected = 0
         for part in self.transmited_parts:
             if part.filepart.part_idx == expected:
@@ -293,6 +305,7 @@ class Router:
             else:
                 return
         
+        print('check 3')
         self.ask_stop_building()
         self.data = []
         for part in self.transmited_parts:
@@ -304,15 +317,18 @@ class Router:
             return
         
         # collect data from all inputs connections
-        for input_conn_key in self.input_conn.keys():
-            input_conn = self.input_conn[input_conn_key]
+        for input_conn_key in self.inputed_conns.keys():
+            input_conn = self.inputed_conns[input_conn_key]
             
             get_packages = input_conn.get()
             
             if get_packages == None:
                 continue
             else:
-                self.transmited_parts += get_packages
+                #print(f'Arrived to "{self.index}" packages: {get_packages}')
+                #print(f'Origin parts of {self.index}: {self.transmited_parts}')
+                for pack in get_packages:
+                    self.transmited_parts += pack
         
         # if transmitted parts are in correct place - just check if there are all packages and 
         if len(self.transmited_parts) == 0:
@@ -328,7 +344,9 @@ class Router:
         
         # choose the way to put all packages
         destination = data_to_transfer[0].destination
+        #print(self.shortest_roads)
         packages_path = self.shortest_roads[destination]
+        print(f'Shortest part from "{self.index}" to {data_to_transfer[0].destination}: {packages_path}. Next router is {packages_path[1]}')
         reciever = packages_path[1] # <- 'cause '0' element is for start position
         self.outputed_conns[reciever].push(data_to_transfer, False) 
 
