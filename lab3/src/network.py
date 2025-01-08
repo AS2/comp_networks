@@ -394,7 +394,7 @@ class Router:
             print(f"Node-{self.index}: ending to build file.")
             if input_msg.data == self.index:
                 print(f"---ASKED NODE FINISHED BUILDING FILE with time {time.time() - self.start_time}---")
-                print(f"RESULT:\n{self.data}")
+                print(f"RESULT:\n{''.join(self.data)}")
 
         else:
             print("DR: unexpected msf type:", input_msg.type)
